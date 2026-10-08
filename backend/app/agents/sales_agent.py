@@ -11,6 +11,7 @@ logger = get_logger(__name__)
 
 REQUIRED_FIELDS = ["company_name", "budget", "business_need", "timeline"]
 
+
 EXTRACTION_SYSTEM = """
 You are a Sales AI assistant. Extract structured lead information from the user's message.
 
@@ -275,4 +276,125 @@ def run_sales_agent(message: str, existing_lead: dict = None) -> dict:
             "score_result": None,
             "outreach": None,
             "missing_fields": None,
+        }
+
+
+def run_sales_agent_from_form(form_data: dict) -> dict:
+    """
+    Process a lead that was created via the structured Lead Creation Form.
+    Bypasses NLP extraction — data comes in pre-structured from the form.
+
+    form_data keys:
+        customer_name, company_name, email, phone,
+        requirement, budget (raw string), timeline, additional_details
+
+    Returns same shape as run_sales_agent.
+    """
+    try:
+        company_name = (form_data.get("company_name") or "").strip()
+        contact_name = (form_data.get("customer_name") or "").strip()
+        email        = (form_data.get("email") or "").strip() or None
+        phone        = (form_data.get("phone") or "").strip() or None
+        requirement  = (form_data.get("requirement") or "").strip()
+        raw_budget   = form_data.get("budget")
+        timeline     = (form_data.get("timeline") or "").strip() or None
+        additional   = (form_data.get("additional_details") or "").strip() or None
+
+        if not company_name:
+            return {
+                "status": "ERROR",
+                "message": "Company name is required.",
+                "lead_id": None, "lead": None,
+                "score_result": None, "outreach": None, "missing_fields": ["company_name"],
+            }
+        if not requirement:
+            return {
+                "status": "ERROR",
+                "message": "Customer requirement is required.",
+                "lead_id": None, "lead": None,
+                "score_result": None, "outreach": None, "missing_fields": ["requirement"],
+            }
+
+        # Build a combined inquiry string for context
+        inquiry_parts = [f"Requirement: {requirement}"]
+        if additional:
+            inquiry_parts.append(f"Additional details: {additional}")
+        if phone:
+            inquiry_parts.append(f"Phone: {phone}")
+        inquiry = " | ".join(inquiry_parts)
+
+        # Parse budget from raw string
+        budget = None
+        if raw_budget:
+            lead_for_parse = {"budget": raw_budget}
+            normalized = _normalize_lead_extraction(lead_for_parse)
+            budget = normalized.get("budget")
+
+        lead_data = {
+            "company_name": company_name,
+            "contact_name": contact_name,
+            "email": email,
+            "inquiry": inquiry,
+            "budget": budget,
+            "business_need": requirement,
+            "timeline": timeline,
+            "decision_maker": None,  # Not captured via form — assume unknown
+        }
+
+        # Validate required fields (budget + timeline may be None — still qualify)
+        missing = []
+        if not lead_data["company_name"]:
+            missing.append("company_name")
+        if not lead_data["business_need"]:
+            missing.append("business_need")
+        if missing:
+            return {
+                "status": "NEEDS_CLARIFICATION",
+                "message": _ask_clarification(missing),
+                "lead": lead_data,
+                "missing_fields": missing,
+                "lead_id": None, "score_result": None, "outreach": None,
+            }
+
+        score_result = score_lead(lead_data)
+        outreach = _generate_outreach(lead_data, score_result["tier"])
+        lead_id = save_lead(lead_data, score_result, outreach)
+
+        tier = score_result["tier"]
+        tier_messages = {
+            "HOT": "🔥 HOT lead! High priority.",
+            "WARM": "✅ WARM lead. Good potential.",
+            "COLD": "❄️ COLD lead. Low priority for now.",
+        }
+        response_msg = (
+            f"Lead qualified successfully.\n\n"
+            f"**Company:** {company_name}\n"
+            f"**Contact:** {contact_name}\n"
+            f"**Score:** {score_result['score']}/100\n"
+            f"**Tier:** {tier}\n\n"
+            f"{tier_messages.get(tier, 'Lead processed.')}"
+        )
+
+        logger.info(
+            "Sales agent (form): QUALIFIED lead_id=%s company=%s tier=%s score=%.2f",
+            lead_id, company_name, tier, score_result["score"],
+        )
+
+        return {
+            "status": "QUALIFIED",
+            "message": response_msg,
+            "lead_id": lead_id,
+            "lead": lead_data,
+            "score_result": score_result,
+            "outreach": outreach,
+            "missing_fields": [],
+        }
+
+    except Exception as e:
+        logger.exception("Sales Agent (form) error")
+        return {
+            "status": "ERROR",
+            "message": f"Sales Agent encountered an error: {type(e).__name__}: {e}",
+            "lead_id": None, "lead": None,
+            "score_result": None, "outreach": None, "missing_fields": None,
         }

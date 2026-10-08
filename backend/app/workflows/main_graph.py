@@ -9,8 +9,11 @@ from app.database.database import DB_PATH
 
 from app.router.router import classify_intent
 from app.agents.sales_agent import run_sales_agent
-from app.agents.operations_agent import _handle_deal_won, _handle_task_update, run_status_query
+from app.agents.operations_agent import _handle_task_update, run_status_query
 from app.services.execution_service import log_step
+from app.tools.lead_tools import get_all_leads, get_lead_by_company
+from app.tools.deal_tools import get_all_deals, get_deal_by_company
+from app.tools.task_tools import get_all_tasks
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -40,70 +43,167 @@ def router_node(state: AgentState):
 
 
 def route_intent(state: AgentState) -> str:
-    intent = state.get("intent", "NEW_LEAD")
-    valid = {"NEW_LEAD", "DEAL_WON", "TASK_UPDATE", "STATUS_QUERY"}
+    intent = state.get("intent", "GENERAL_QUERY")
+    valid = {
+        "STATUS_QUERY", "TASK_UPDATE",
+        "LEAD_QUERY", "DEAL_QUERY", "TASK_QUERY", "GENERAL_QUERY",
+    }
     if intent not in valid:
-        logger.warning("Graph route_intent: unexpected intent=%r, using NEW_LEAD", intent)
-        return "NEW_LEAD"
+        logger.warning("Graph route_intent: unexpected intent=%r, using GENERAL_QUERY", intent)
+        return "GENERAL_QUERY"
     return intent
 
 
-def sales_agent_node(state: AgentState):
-    intent = state.get("intent", "NEW_LEAD")
-    existing_lead = state.get("extracted_lead")
-    agent_result = run_sales_agent(state["message"], existing_lead)
-    status = agent_result.get("status", "ERROR")
+def query_node(state: AgentState):
+    """
+    Handles LEAD_QUERY, DEAL_QUERY, TASK_QUERY, and GENERAL_QUERY intents.
+    Retrieves relevant data from the database and generates a natural language response.
+    """
+    intent = state.get("intent", "GENERAL_QUERY")
+    message = state.get("message", "")
+    entity = state.get("entity")
 
     trace = []
+    response_text = ""
+    data_out = {}
 
-    if status == "QUALIFIED":
-        trace.append(log_step(intent, "Sales Agent", "Extract Information", "Lead data extracted successfully"))
-        trace.append(log_step(intent, "Validation", "Check Required Fields", "All required information complete"))
+    try:
+        if intent == "LEAD_QUERY":
+            trace.append(log_step(intent, "Sales Agent", "Query Leads", "Fetching lead data"))
+            leads = get_all_leads()
 
-        score_val = agent_result.get("score_result", {}).get("score", 0)
-        tier_val = agent_result.get("score_result", {}).get("tier", "COLD")
+            # Filter based on the entity (company name) if provided
+            if entity:
+                leads = [l for l in leads if entity.lower() in (l.get("company_name") or "").lower()]
 
-        trace.append(log_step(intent, "Scoring Tool", "Calculate Score", f"Score: {score_val}"))
-        trace.append(log_step(intent, "Sales Agent", "Assign Tier", f"Tier: {tier_val}"))
-        trace.append(log_step(intent, "Sales Agent", "Outreach", "Draft generated"))
-        trace.append(log_step(intent, "Database", "Save Lead", "Saved to SQLite"))
+            msg_lower = message.lower()
 
-    elif status == "NEEDS_CLARIFICATION":
-        trace.append(log_step(intent, "Sales Agent", "Extract Information", "Partial lead data extracted"))
-        missing = ", ".join(agent_result.get("missing_fields", []))
-        trace.append(log_step(intent, "Validation", "Check Required Fields", f"Missing information: {missing}"))
-        trace.append(log_step(intent, "Sales Agent", "Clarification", "Asked user for missing details"))
+            # Smart filtering based on message content
+            if any(kw in msg_lower for kw in ["hot", "warm", "cold"]):
+                for tier in ["HOT", "WARM", "COLD"]:
+                    if tier.lower() in msg_lower:
+                        leads = [l for l in leads if l.get("tier") == tier]
+                        break
 
-    elif status == "ERROR":
-        trace.append(log_step(intent, "Sales Agent", "Error", agent_result.get("message", "Unknown error")))
+            if "score above" in msg_lower or "score >" in msg_lower:
+                # Try to extract score threshold
+                import re
+                nums = re.findall(r'\d+', msg_lower)
+                if nums:
+                    threshold = int(nums[-1])
+                    leads = [l for l in leads if (l.get("score") or 0) >= threshold]
+
+            if not leads:
+                response_text = "No matching leads found."
+            else:
+                lines = [f"**Lead Pipeline** ({len(leads)} lead(s)):\n"]
+                for l in leads:
+                    budget_str = f"\u20b9{l['budget']:,.0f}" if l.get("budget") else "N/A"
+                    lines.append(
+                        f"\n**{l['company_name']}**\n"
+                        f"  Contact: {l.get('contact_name') or 'N/A'}\n"
+                        f"  Requirement: {l.get('need') or 'N/A'}\n"
+                        f"  Budget: {budget_str}\n"
+                        f"  Timeline: {l.get('timeline') or 'N/A'}\n"
+                        f"  Score: {l.get('score') or 'N/A'}/100 | Tier: {l.get('tier') or 'N/A'}\n"
+                        f"  Status: {l.get('status') or 'N/A'}"
+                    )
+                response_text = "\n".join(lines)
+            data_out = {"leads": leads}
+            trace.append(log_step(intent, "Database", "Fetch Leads", f"Retrieved {len(leads)} leads"))
+
+        elif intent == "DEAL_QUERY":
+            trace.append(log_step(intent, "Operations Agent", "Query Deals", "Fetching deal data"))
+            deals = get_all_deals()
+
+            if entity:
+                deals = [d for d in deals if entity.lower() in (d.get("company_name") or "").lower()]
+
+            msg_lower = message.lower()
+            if "won" in msg_lower:
+                deals = [d for d in deals if d.get("status") == "WON"]
+
+            if not deals:
+                response_text = "No matching deals found."
+            else:
+                lines = [f"**Deals** ({len(deals)} deal(s)):\n"]
+                for d in deals:
+                    val = f"\u20b9{d['deal_value']:,.0f}" if d.get("deal_value") else "TBD"
+                    lines.append(
+                        f"\n**{d.get('company_name', 'Unknown')}** (Deal #{d['id']})\n"
+                        f"  Value: {val}\n"
+                        f"  Status: {d.get('status')}\n"
+                        f"  Lead Score: {d.get('score') or 'N/A'} ({d.get('tier') or '-'})\n"
+                        f"  Won At: {d.get('won_at') or 'N/A'}"
+                    )
+                response_text = "\n".join(lines)
+            data_out = {"deals": deals}
+            trace.append(log_step(intent, "Database", "Fetch Deals", f"Retrieved {len(deals)} deals"))
+
+        elif intent == "TASK_QUERY":
+            trace.append(log_step(intent, "Operations Agent", "Query Tasks", "Fetching task data"))
+            tasks = get_all_tasks()
+
+            if entity:
+                tasks = [t for t in tasks if entity.lower() in (t.get("company_name") or "").lower()]
+
+            msg_lower = message.lower()
+            if "pending" in msg_lower or "open" in msg_lower:
+                tasks = [t for t in tasks if t.get("status") in ("OPEN", "BLOCKED")]
+            elif "completed" in msg_lower or "done" in msg_lower:
+                tasks = [t for t in tasks if t.get("status") == "DONE"]
+            elif "in progress" in msg_lower or "in_progress" in msg_lower:
+                tasks = [t for t in tasks if t.get("status") == "IN_PROGRESS"]
+
+            if "high" in msg_lower and "priority" in msg_lower:
+                tasks = [t for t in tasks if t.get("priority") == "HIGH"]
+
+            if not tasks:
+                response_text = "No matching tasks found."
+            else:
+                lines = [f"**Tasks** ({len(tasks)} task(s)):\n"]
+                for t in tasks:
+                    lines.append(
+                        f"  • [{t.get('status')}] {t.get('task_name')} "
+                        f"— {t.get('priority')} priority "
+                        f"({t.get('company_name', 'Unknown')})"
+                    )
+                response_text = "\n".join(lines)
+            data_out = {"tasks": tasks}
+            trace.append(log_step(intent, "Database", "Fetch Tasks", f"Retrieved {len(tasks)} tasks"))
+
+        elif intent == "STATUS_QUERY":
+            # Delegate to existing status query handler
+            from app.agents.operations_agent import run_status_query
+            result = run_status_query(message)
+            response_text = result.get("message", "")
+            data_out = result.get("data", {})
+            trace.append(log_step(intent, "Operations Agent", "Query Status", "Retrieved onboarding status"))
+
+        else:
+            # GENERAL_QUERY fallback
+            response_text = (
+                "I can help you find information about leads, deals, and operational tasks.\n\n"
+                "Try asking:\n"
+                "• \"Show me all HOT leads\"\n"
+                "• \"What are the details of [Company Name]?\"\n"
+                "• \"Which leads have a score above 80?\"\n"
+                "• \"What deals are currently WON?\"\n"
+                "• \"Show me pending high-priority tasks\"\n\n"
+                "Note: To create a new lead, use the **Lead Pipeline → + Create Lead** button.\n"
+                "To confirm a deal, use the **Confirm Deal** button on the lead card."
+            )
+            trace.append(log_step(intent, "Chat Assistant", "General Help", "Provided guidance"))
+
+    except Exception as e:
+        logger.exception("query_node error for intent=%s", intent)
+        response_text = f"I encountered an error while retrieving that information: {type(e).__name__}"
+        trace.append(log_step(intent, "Chat Assistant", "Error", str(e)))
 
     return {
-        "final_response": agent_result.get("message", ""),
+        "final_response": response_text,
         "execution_trace": trace,
-        "data": agent_result,
-        "extracted_lead": agent_result.get("lead"),
-    }
-
-
-def deal_won_node(state: AgentState):
-    intent = state.get("intent", "DEAL_WON")
-    result = _handle_deal_won(state["message"])
-    status = result.get("status")
-
-    trace = []
-    if status == "SUCCESS":
-        trace.append(log_step(intent, "Operations Agent", "Find Lead & Deal", "Lead and deal identified"))
-        trace.append(log_step(intent, "Operations Agent", "Mark Won", "Deal marked as won"))
-        trace.append(log_step(intent, "Operations Agent", "Create Tasks", "Onboarding tasks created"))
-    elif status == "ALREADY_ONBOARDING":
-        trace.append(log_step(intent, "Operations Agent", "Duplicate Check", "Deal already onboarding"))
-    else:
-        trace.append(log_step(intent, "Operations Agent", "Error", result.get("message", "Unknown error")))
-
-    return {
-        "final_response": result.get("message", ""),
-        "execution_trace": trace,
-        "data": result,
+        "data": data_out,
     }
 
 
@@ -122,24 +222,6 @@ def task_update_node(state: AgentState):
         "final_response": result.get("message", ""),
         "execution_trace": trace,
         "data": result,
-    }
-
-
-def status_query_node(state: AgentState):
-    intent = state.get("intent", "STATUS_QUERY")
-    result = run_status_query(state["message"])
-    status = result.get("status")
-
-    trace = []
-    if status == "SUCCESS":
-        trace.append(log_step(intent, "Operations Agent", "Query Status", "Retrieved onboarding status"))
-    else:
-        trace.append(log_step(intent, "Operations Agent", "Error", result.get("message", "Unknown error")))
-
-    return {
-        "final_response": result.get("message", ""),
-        "execution_trace": trace,
-        "data": result.get("data", {}),
     }
 
 
@@ -166,26 +248,24 @@ def _build_checkpointer() -> SqliteSaver:
 workflow = StateGraph(AgentState)
 
 workflow.add_node("router", router_node)
-workflow.add_node("sales_agent", sales_agent_node)
-workflow.add_node("deal_won", deal_won_node)
+workflow.add_node("query", query_node)
 workflow.add_node("task_update", task_update_node)
-workflow.add_node("status_query", status_query_node)
 
 workflow.add_edge(START, "router")
 workflow.add_conditional_edges(
     "router",
     route_intent,
     {
-        "NEW_LEAD": "sales_agent",
-        "DEAL_WON": "deal_won",
+        "STATUS_QUERY": "query",
+        "LEAD_QUERY": "query",
+        "DEAL_QUERY": "query",
+        "TASK_QUERY": "query",
+        "GENERAL_QUERY": "query",
         "TASK_UPDATE": "task_update",
-        "STATUS_QUERY": "status_query",
     },
 )
-workflow.add_edge("sales_agent", END)
-workflow.add_edge("deal_won", END)
+workflow.add_edge("query", END)
 workflow.add_edge("task_update", END)
-workflow.add_edge("status_query", END)
 
 memory = _build_checkpointer()
 app_graph = workflow.compile(checkpointer=memory)

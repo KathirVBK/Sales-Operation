@@ -5,9 +5,16 @@ import { ExecutionTrace } from './ExecutionTrace';
 const WELCOME_MESSAGE = {
   role: 'agent',
   content:
-    "Hello! I am the Lead-to-Delivery AI Agent. I can help qualify leads, convert them to deals, and manage onboarding tasks. How can I help you today?",
+    "Hello! I'm your Sales & Operations AI Assistant. I can help you retrieve business information.\n\nYou can ask me:\n• \"Show me all HOT leads\"\n• \"Why was ABC Technologies classified as a HOT lead?\"\n• \"Which leads have a score above 80?\"\n• \"What deals are currently WON?\"\n• \"Show me pending high-priority tasks\"\n• \"What is the status of ABC Technologies?\"\n\nTo create a lead, use the Lead Pipeline → + Create Lead button.\nTo confirm a deal, open a lead and click Confirm Deal.",
   system: true,
 };
+
+const QUICK_PROMPTS = [
+  'Show me all HOT leads',
+  'Which leads have a score above 70?',
+  'What deals are WON?',
+  'Show pending high-priority tasks',
+];
 
 function formatMessagesFromHistory(historyItems = []) {
   const out = [];
@@ -74,12 +81,11 @@ export function ChatPanel({ refreshData }) {
       setMessages([WELCOME_MESSAGE]);
     } catch (err) {
       console.error('[ChatPanel] Failed to clear history:', err);
-      alert(`Failed to clear history: ${err.message}`);
     }
   };
 
   const handleNewThread = () => {
-    if (!window.confirm('Start a new conversation thread? (Current history is preserved in storage.)')) return;
+    if (!window.confirm('Start a new conversation thread?')) return;
     const newId = `thread_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     try {
       localStorage.setItem('chat_thread_id', newId);
@@ -89,18 +95,16 @@ export function ChatPanel({ refreshData }) {
     setMessages([WELCOME_MESSAGE]);
   };
 
-  const handleSend = async (e) => {
-    if (e) e.preventDefault();
-    const trimmed = input.trim();
+  const sendMessage = async (messageText) => {
+    const trimmed = (messageText || input).trim();
     if (!trimmed || isLoading) return;
 
-    const userMsg = trimmed;
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
+    setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
     setIsLoading(true);
 
     try {
-      const response = await api.sendMessage(userMsg, { threadId });
+      const response = await api.sendMessage(trimmed, { threadId });
       setMessages((prev) => [
         ...prev,
         {
@@ -134,6 +138,11 @@ export function ChatPanel({ refreshData }) {
     }
   };
 
+  const handleSend = async (e) => {
+    if (e) e.preventDefault();
+    await sendMessage();
+  };
+
   const onInputKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -143,6 +152,7 @@ export function ChatPanel({ refreshData }) {
 
   return (
     <div className="chat-container">
+      {/* Toolbar */}
       <div
         style={{
           display: 'flex',
@@ -151,10 +161,29 @@ export function ChatPanel({ refreshData }) {
           padding: '0.75rem 1rem',
           borderBottom: '1px solid var(--border-color)',
           backgroundColor: 'rgba(255,255,255,0.02)',
+          flexShrink: 0,
         }}
       >
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Thread: <code style={{ opacity: 0.85 }}>{threadId}</code>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.2)',
+              borderRadius: '0.375rem',
+              padding: '0.2rem 0.6rem',
+              fontSize: '0.75rem',
+              color: 'var(--accent-primary)',
+              fontWeight: 600,
+            }}
+          >
+            🔍 Query Mode
+          </span>
+          <span style={{ marginLeft: '0.75rem', opacity: 0.7 }}>
+            Thread: <code>{threadId.slice(0, 20)}…</code>
+          </span>
           {!historyLoaded && <span style={{ marginLeft: '0.5rem' }}>⟳ Loading…</span>}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -163,8 +192,7 @@ export function ChatPanel({ refreshData }) {
             className="secondary-btn"
             onClick={handleNewThread}
             disabled={isLoading}
-            title="Start a new conversation thread"
-            style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+            style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }}
           >
             + New Thread
           </button>
@@ -173,18 +201,21 @@ export function ChatPanel({ refreshData }) {
             className="secondary-btn"
             onClick={handleClearChat}
             disabled={isLoading}
-            title="Clear current chat history"
-            style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+            style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }}
           >
-            Clear Chat
+            Clear
           </button>
         </div>
       </div>
 
+      {/* Message History */}
       <div className="chat-history">
         {messages.map((msg, i) => (
           <div key={i} className={`message ${msg.role}`}>
-            <div className="message-bubble" style={msg.error ? { border: '1px solid #f87171' } : undefined}>
+            <div
+              className="message-bubble"
+              style={msg.error ? { border: '1px solid #f87171' } : undefined}
+            >
               {typeof msg.content === 'string'
                 ? msg.content.split('\n').map((line, idx) => (
                     <React.Fragment key={idx}>
@@ -216,7 +247,7 @@ export function ChatPanel({ refreshData }) {
                 <span className="typing-dot" />
                 <span className="typing-dot" />
                 <span className="typing-dot" />
-                Agent is thinking…
+                Searching database…
               </span>
             </div>
           </div>
@@ -224,6 +255,37 @@ export function ChatPanel({ refreshData }) {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Quick Prompts */}
+      <div
+        style={{
+          padding: '0.75rem 1rem 0',
+          display: 'flex',
+          gap: '0.5rem',
+          flexWrap: 'wrap',
+          borderTop: '1px solid var(--border-color)',
+          background: 'rgba(0,0,0,0.1)',
+        }}
+      >
+        {QUICK_PROMPTS.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            className="secondary-btn"
+            onClick={() => sendMessage(prompt)}
+            disabled={isLoading}
+            style={{
+              padding: '0.25rem 0.75rem',
+              fontSize: '0.75rem',
+              borderRadius: '9999px',
+              opacity: isLoading ? 0.5 : 1,
+            }}
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+
+      {/* Input Form */}
       <form className="chat-input-container" onSubmit={handleSend}>
         <textarea
           ref={textareaRef}
@@ -231,9 +293,9 @@ export function ChatPanel({ refreshData }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onInputKeyDown}
-          placeholder="Enter a new lead, mark a deal as won, or ask about onboarding status… (Shift+Enter for newline)"
+          placeholder="Ask about leads, deals, tasks… (e.g. Show me all HOT leads)"
           disabled={isLoading}
-          rows={Math.min(4, Math.max(1, input.split('\n').length))}
+          rows={Math.min(3, Math.max(1, input.split('\n').length))}
           style={{ resize: 'vertical', minHeight: '2.5rem', lineHeight: '1.4' }}
         />
         <button
@@ -241,7 +303,7 @@ export function ChatPanel({ refreshData }) {
           className="send-btn"
           disabled={isLoading || !input.trim()}
         >
-          {isLoading ? 'Sending…' : 'Send'}
+          {isLoading ? 'Searching…' : 'Ask'}
         </button>
       </form>
     </div>

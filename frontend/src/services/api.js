@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://127.0.0.1:8000/api';
 
 const DEFAULT_THREAD_ID = 'default_thread';
 
@@ -39,7 +39,7 @@ async function _handleResponse(res) {
 export const api = {
   getThreadId,
 
-  // Chat
+  // Chat (query-only)
   async sendMessage(message, { threadId } = {}) {
     if (!message || typeof message !== 'string' || !message.trim()) {
       throw new Error('Message is required.');
@@ -86,6 +86,34 @@ export const api = {
     return _handleResponse(res);
   },
 
+  /**
+   * Create a lead via the structured Lead Creation Form.
+   * @param {Object} formData - { customer_name, company_name, email, phone, requirement, budget, timeline, additional_details }
+   */
+  async createLead(formData) {
+    if (!formData || !formData.company_name || !formData.requirement) {
+      throw new Error('Company name and requirement are required.');
+    }
+    const res = await fetch(`${API_URL}/leads/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+    return _handleResponse(res);
+  },
+
+  /**
+   * Human-controlled deal confirmation. Sales Employee confirms customer accepted deal.
+   * @param {number} leadId - The ID of the qualified lead to convert to a WON deal
+   */
+  async confirmDeal(leadId) {
+    if (!leadId) throw new Error('Lead id is required.');
+    const res = await fetch(`${API_URL}/leads/${encodeURIComponent(leadId)}/confirm-deal`, {
+      method: 'POST',
+    });
+    return _handleResponse(res);
+  },
+
   // Deals
   async getDeals() {
     const res = await fetch(`${API_URL}/deals`);
@@ -95,14 +123,6 @@ export const api = {
   async getDeal(id) {
     if (!id) throw new Error('Deal id is required.');
     const res = await fetch(`${API_URL}/deals/${encodeURIComponent(id)}`);
-    return _handleResponse(res);
-  },
-
-  async markDealWon(dealId) {
-    if (!dealId) throw new Error('Deal id is required.');
-    const res = await fetch(`${API_URL}/deals/${encodeURIComponent(dealId)}/won`, {
-      method: 'POST',
-    });
     return _handleResponse(res);
   },
 
@@ -124,8 +144,9 @@ export const api = {
       throw new Error('Status must be a non-empty string.');
     }
     const normalized = String(status).trim().toUpperCase();
-    if (!['OPEN', 'IN_PROGRESS', 'BLOCKED', 'DONE'].includes(normalized)) {
-      throw new Error(`Invalid status: ${normalized}. Must be one of OPEN, IN_PROGRESS, BLOCKED, DONE.`);
+    const allowed = ['OPEN', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'PENDING', 'COMPLETED'];
+    if (!allowed.includes(normalized)) {
+      throw new Error(`Invalid status: ${normalized}.`);
     }
     const res = await fetch(`${API_URL}/tasks/${encodeURIComponent(taskId)}`, {
       method: 'PATCH',

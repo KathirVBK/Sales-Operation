@@ -18,7 +18,7 @@ VALID_PRIORITIES = {"HIGH", "MEDIUM", "LOW"}
 VALID_STATUSES = set(ALLOWED_TRANSITIONS.keys())
 
 DEFAULT_TASKS = [
-    {"task_name": "Verify Contract",        "priority": "HIGH"},
+    {"task_name": "Verify signed contract", "priority": "HIGH"},
     {"task_name": "Create Customer Account","priority": "HIGH"},
     {"task_name": "Schedule Kickoff",       "priority": "MEDIUM"},
     {"task_name": "Configure System",       "priority": "MEDIUM"},

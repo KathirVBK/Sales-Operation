@@ -3,6 +3,7 @@ from typing import Optional, List, Any, Literal
 from datetime import datetime
 
 
+
 # ── Router ──────────────────────────────────────────────────────────────────
 
 class RouterOutput(BaseModel):
@@ -12,6 +13,18 @@ class RouterOutput(BaseModel):
 
 
 # ── Lead ─────────────────────────────────────────────────────────────────────
+
+class CreateLeadRequest(BaseModel):
+    """Form-based lead creation submitted by Sales Employee."""
+    customer_name: str
+    company_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    requirement: str
+    budget: Optional[str] = None          # Raw string e.g. "₹8 lakh" or "800000"
+    timeline: Optional[str] = None
+    additional_details: Optional[str] = None
+
 
 class LeadExtraction(BaseModel):
     company_name: Optional[str] = None
@@ -68,6 +81,16 @@ class DealAction(BaseModel):
 
 VALID_TASK_STATUSES = Literal["OPEN", "IN_PROGRESS", "BLOCKED", "DONE"]
 
+# Aliases for UI-friendly status names → canonical DB values
+STATUS_ALIASES = {
+    "PENDING": "OPEN",
+    "COMPLETED": "DONE",
+    "OPEN": "OPEN",
+    "IN_PROGRESS": "IN_PROGRESS",
+    "BLOCKED": "BLOCKED",
+    "DONE": "DONE",
+}
+
 
 class TaskStatusUpdate(BaseModel):
     status: str
@@ -78,10 +101,11 @@ class TaskStatusUpdate(BaseModel):
         if not isinstance(v, str):
             raise ValueError("status must be a string")
         normalized = v.strip().upper()
-        allowed = {"OPEN", "IN_PROGRESS", "BLOCKED", "DONE"}
-        if normalized not in allowed:
-            raise ValueError(f"status must be one of: {sorted(allowed)}")
-        return normalized
+        # Support PENDING/COMPLETED as friendly aliases
+        canonical = STATUS_ALIASES.get(normalized)
+        if canonical is None:
+            raise ValueError(f"status must be one of: {sorted(STATUS_ALIASES.keys())}")
+        return canonical
 
 
 class TaskAction(BaseModel):

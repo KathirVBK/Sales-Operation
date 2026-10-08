@@ -42,9 +42,10 @@ A college-level workshop project demonstrating how AI agents connect Sales and O
    > "Hi, I'm Arun from ABC Technologies. We need an inventory management solution. Our budget is around ₹8 lakh and we want to implement it within 30 days."
 
 2. **Incomplete Lead (Clarification)**
-   > "We need an inventory system for our company."
-   *Wait for agent to ask for budget/timeline, then reply with:*
+   > "We need a database system for ABC Tech."
+   *The agent replies asking for budget and timeline. You answer:*
    > "Around 5 lakh within one month"
+   *The agent then scores the lead.*
 
 3. **Deal Won (Operations Handoff)**
    > "ABC Technologies has accepted our proposal. Mark the deal as won."
@@ -53,4 +54,35 @@ A college-level workshop project demonstrating how AI agents connect Sales and O
    > "Is ABC Technologies onboarded?"
 
 5. **Task Update**
-   > "Move ABC Technologies verify contract to done."
+   > "Move ABC Technologies verify signed contract to done."
+
+## Scoring Rules
+
+The LLM only extracts the facts from the conversation (budget, timeline). A deterministic Python script then calculates the score based on these facts:
+
+| Factor | Condition | Points |
+|---|---|---|
+| Budget | > ₹5 Lakh | +20 |
+| Budget | <= ₹5 Lakh | +10 |
+| Timeline | < 30 days | +20 |
+| Timeline | >= 30 days | +10 |
+
+**Tier Thresholds:**
+- **HOT:** 35+ points
+- **WARM:** 20-34 points
+- **COLD:** < 20 points
+
+## Scope & Limitations
+
+What this project deliberately does NOT do:
+- **No real email sending:** It simulates handoffs and notifications.
+- **No CRM integration:** It uses a local SQLite database for shared state.
+- **No authentication/login:** It is designed for demonstration purposes only.
+
+## Edge Cases
+
+- **Duplicate "Deal Won" events:** If a deal is marked won twice, the system updates the status idempotently without creating duplicate tasks.
+- **Non-existent Company:** If an operation is requested for a company that does not exist, the agent will inform you that the record could not be found.
+
+## Task Dependencies
+The tasks generated upon winning a deal are completely independent and can be completed in any order.

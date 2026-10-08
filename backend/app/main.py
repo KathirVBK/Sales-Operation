@@ -6,10 +6,12 @@ from app.config import CORS_ORIGINS, GROQ_API_KEY, DB_PATH
 from app.database.database import init_db, get_connection
 from app.schemas.schemas import (
     ChatRequest, ChatResponse, TaskStatusUpdate, HealthResponse,
+    CreateLeadRequest,
 )
 from app.router.router import classify_intent
 
 from app.workflows.main_graph import app_graph
+from app.agents.sales_agent import run_sales_agent_from_form
 from app.tools.lead_tools import get_all_leads, get_lead_by_id
 from app.tools.deal_tools import (
     get_all_deals, get_deal_with_lead, get_deal_by_id,
@@ -29,7 +31,7 @@ import os
 
 logger = get_logger(__name__)
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "2.0.0"
 
 
 def _validate_startup() -> None:
@@ -73,7 +75,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "Accept"],
 )
 
@@ -97,13 +99,14 @@ async def health_check():
     )
 
 
-# ── Chat / Agent entry point ─────────────────────────────────────────────────
+# ── Chat / Agent entry point (QUERY ONLY) ────────────────────────────────────
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     """
-    Main natural language entry point.
-    Classifies intent and routes to the correct workflow.
+    Chat assistant — for querying business information only.
+    Lead creation: POST /api/leads/create
+    Deal confirmation: POST /api/leads/{lead_id}/confirm-deal
     """
     thread_id = request.thread_id or "default_thread"
     message = (request.message or "").strip()
@@ -180,6 +183,90 @@ async def get_lead(lead_id: int):
     return {"lead": lead}
 
 
+@app.post("/api/leads/create")
+async def create_lead_endpoint(request: CreateLeadRequest):
+    """
+    Form-based lead creation.
+    Sales Employee fills the Lead Creation Form → Sales Agent qualifies the lead.
+    """
+    logger.info("Lead creation form submitted for company=%s contact=%s",
+                request.company_name, request.customer_name)
+
+    try:
+        form_data = request.model_dump()
+        result = run_sales_agent_from_form(form_data)
+
+        if result["status"] == "ERROR":
+            raise HTTPException(status_code=422, detail=result["message"])
+
+        return {
+            "status": result["status"],
+            "lead_id": result.get("lead_id"),
+            "score_result": result.get("score_result"),
+            "outreach": result.get("outreach"),
+            "message": result.get("message"),
+            "lead": result.get("lead"),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Lead creation endpoint error")
+        raise HTTPException(status_code=500, detail=f"Lead creation failed: {type(e).__name__}")
+
+
+@app.post("/api/leads/{lead_id}/confirm-deal")
+async def confirm_deal_endpoint(lead_id: int):
+    """
+    Human-controlled deal confirmation.
+    Sales Employee clicks 'Confirm Deal' after customer agrees.
+    Creates a WON deal + generates onboarding tasks.
+    """
+    if lead_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid lead_id")
+
+    lead = get_lead_by_id(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    logger.info("Deal confirmation requested for lead_id=%s company=%s",
+                lead_id, lead.get("company_name"))
+
+    # Create deal linked to this lead with the lead's budget as deal value
+    deal_value = lead.get("budget")
+    deal_id = create_deal(lead_id, deal_value)
+
+    # Immediately mark as WON (human already confirmed it)
+    mark_deal_won(deal_id)
+
+    # Trigger Operations Agent: generate onboarding tasks
+    if tasks_exist_for_deal(deal_id):
+        tasks = get_tasks_for_deal(deal_id)
+        logger.info("Deal %s already had onboarding tasks (%d total) for company=%s",
+                    deal_id, len(tasks), lead.get("company_name"))
+    else:
+        tasks = create_onboarding_tasks(deal_id, lead)
+
+    logger.info("Deal confirmed: deal_id=%s lead_id=%s company=%s tasks=%d",
+                deal_id, lead_id, lead.get("company_name"), len(tasks))
+
+    return {
+        "status": "success",
+        "data": {
+            "deal_id": deal_id,
+            "lead_id": lead_id,
+            "company_name": lead["company_name"],
+            "deal_value": deal_value,
+            "deal_status": "WON",
+            "tasks": tasks,
+            "tasks_count": len(tasks),
+            "message": (
+                f"Deal confirmed as WON for {lead['company_name']}. "
+                f"{len(tasks)} onboarding tasks created."
+            ),
+        },
+    }
+
+
 # ── Deals ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/deals")
@@ -200,57 +287,6 @@ async def get_deal(deal_id: int):
         raise HTTPException(status_code=404, detail="Deal not found")
     deal["tasks"] = get_tasks_for_deal(deal_id)
     return {"deal": deal}
-
-
-@app.post("/api/deals/{deal_id}/won")
-async def mark_deal_won_endpoint(deal_id: int):
-    if deal_id <= 0:
-        raise HTTPException(status_code=400, detail="Invalid deal_id")
-
-    deal = get_deal_by_id(deal_id)
-    if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found")
-
-    lead = get_lead_by_id(deal["lead_id"])
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead for deal not found")
-
-    mark_deal_won(deal_id)
-
-    if tasks_exist_for_deal(deal_id):
-        tasks = get_tasks_for_deal(deal_id)
-        logger.info("Deal %s already had onboarding tasks (%d total) for company=%s",
-                    deal_id, len(tasks), lead.get("company_name"))
-        return {
-            "status": "success",
-            "data": {
-                "status": "ALREADY_ONBOARDING",
-                "deal_id": deal_id,
-                "lead_id": lead["id"],
-                "tasks": tasks,
-                "message": f"{lead['company_name']} already has an onboarding plan with {len(tasks)} tasks.",
-            },
-        }
-
-    tasks = create_onboarding_tasks(deal_id, lead)
-
-    logger.info("Deal_id=%s marked WON for company=%s; %d tasks created",
-                deal_id, lead.get("company_name"), len(tasks))
-
-    return {
-        "status": "success",
-        "data": {
-            "status": "SUCCESS",
-            "deal_id": deal_id,
-            "lead_id": lead["id"],
-            "tasks": tasks,
-            "message": (
-                f"Deal marked as WON for {lead['company_name']}.\n\n"
-                f"{len(tasks)} onboarding tasks created:\n" +
-                "\n".join(f"• {t['task_name']} — {t['priority']}" for t in tasks)
-            ),
-        },
-    }
 
 
 @app.get("/api/deals/{deal_id}/status")
