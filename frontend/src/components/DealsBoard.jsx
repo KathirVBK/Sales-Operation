@@ -22,10 +22,9 @@ export function DealsBoard({ deals }) {
   if (!deals || deals.length === 0) {
     return (
       <div style={{ color: 'var(--text-secondary)', textAlign: 'center', marginTop: '4rem' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤝</div>
-        <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No deals yet</h3>
+        <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No contracts yet</h3>
         <p style={{ maxWidth: '400px', margin: '0 auto' }}>
-          When a Sales Employee confirms a deal from the Lead Pipeline, it will appear here with a WON status
+          When a Sales Employee confirms a contract from the Lead Pipeline, it will appear here
           and the Operations Agent will generate onboarding tasks automatically.
         </p>
       </div>
@@ -44,13 +43,13 @@ export function DealsBoard({ deals }) {
         }}
       >
         {[
-          { label: 'WON Deals', value: wonDeals.length, color: '#10B981' },
+          { label: 'Active Contracts', value: wonDeals.length, color: '#10B981' },
           {
             label: 'Total Value',
             value: formatCurrency(wonDeals.reduce((s, d) => s + (Number(d.deal_value) || 0), 0)),
             color: '#6366f1',
           },
-          { label: 'All Deals', value: allDeals.length, color: 'var(--text-secondary)' },
+          { label: 'All Contracts', value: allDeals.length, color: 'var(--text-secondary)' },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -110,7 +109,7 @@ export function DealsBoard({ deals }) {
                 <div>
                   <div className="card-title">{deal.company_name || 'Unknown Company'}</div>
                   <div className="card-subtitle" style={{ marginBottom: 0 }}>
-                    {deal.contact_name ? `Contact: ${deal.contact_name}` : `Deal #${deal.id}`}
+                    {deal.contact_name ? `Contact: ${deal.contact_name}` : `Contract #${deal.id}`}
                   </div>
                 </div>
                 <span
@@ -125,7 +124,7 @@ export function DealsBoard({ deals }) {
                     flexShrink: 0,
                   }}
                 >
-                  {deal.status || 'OPEN'}
+                  {isWon ? 'CONTRACT' : (deal.status || 'OPEN')}
                 </span>
               </div>
 
@@ -139,7 +138,7 @@ export function DealsBoard({ deals }) {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Deal Value:</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Contract Value:</span>
                   <span style={{ fontWeight: 600 }}>{formatCurrency(deal.deal_value)}</span>
                 </div>
                 {deal.need && (
@@ -168,7 +167,7 @@ export function DealsBoard({ deals }) {
                 </div>
                 {isWon && deal.won_at && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Won At:</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Secured At:</span>
                     <span style={{ fontWeight: 500 }}>
                       {new Date(deal.won_at).toLocaleDateString('en-IN', {
                         day: 'numeric',
@@ -193,8 +192,7 @@ export function DealsBoard({ deals }) {
                     color: '#6ee7b7',
                   }}
                 >
-                  <span>✓</span>
-                  <span>Deal confirmed · Operations notified</span>
+                  <span>Contract confirmed · Operations notified</span>
                 </div>
               )}
             </div>
@@ -227,7 +225,7 @@ export function DealsBoard({ deals }) {
                       fontWeight: 700,
                     }}
                   >
-                    {selectedDeal.status}
+                    {selectedDeal.status === 'WON' ? 'CONTRACT' : selectedDeal.status}
                   </span>
                   {selectedDeal.tier && <TierBadge tier={selectedDeal.tier} />}
                 </div>
@@ -252,7 +250,7 @@ export function DealsBoard({ deals }) {
               }}
             >
               <div style={{ textAlign: 'center' }}>
-                <div className="field-label">DEAL VALUE</div>
+                <div className="field-label">CONTRACT VALUE</div>
                 <div style={{ fontWeight: 700, fontSize: '1.4rem', color: '#10B981' }}>
                   {formatCurrency(selectedDeal.deal_value)}
                 </div>
@@ -281,11 +279,11 @@ export function DealsBoard({ deals }) {
                 <div className="field-value">{selectedDeal.email || 'N/A'}</div>
               </div>
               <div>
-                <div className="field-label">Deal ID</div>
+                <div className="field-label">Contract ID</div>
                 <div className="field-value">#{selectedDeal.id}</div>
               </div>
               <div>
-                <div className="field-label">Won At</div>
+                <div className="field-label">Secured At</div>
                 <div className="field-value">
                   {selectedDeal.won_at
                     ? new Date(selectedDeal.won_at).toLocaleString('en-IN', {

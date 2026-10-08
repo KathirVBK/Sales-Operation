@@ -15,10 +15,10 @@ const STATUS_LABEL = {
 };
 
 const STATUS_ICON = {
-  OPEN: '⏳',
-  IN_PROGRESS: '⚡',
-  BLOCKED: '🚫',
-  DONE: '✅',
+  OPEN: '',
+  IN_PROGRESS: '',
+  BLOCKED: '',
+  DONE: '',
 };
 
 const COLUMN_COLOR = {
@@ -29,9 +29,9 @@ const COLUMN_COLOR = {
 };
 
 const TRANSITION_LABEL = {
-  IN_PROGRESS: '▶ Start',
-  DONE: '✓ Complete',
-  BLOCKED: '⛔ Block',
+  IN_PROGRESS: 'Start',
+  DONE: 'Complete',
+  BLOCKED: 'Block',
 };
 
 function formatCurrency(value) {
@@ -69,10 +69,9 @@ export function TasksBoard({ tasks, onUpdateStatus }) {
   if (!tasks || tasks.length === 0) {
     return (
       <div style={{ color: 'var(--text-secondary)', textAlign: 'center', marginTop: '4rem' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
         <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No operational tasks yet</h3>
         <p style={{ maxWidth: '420px', margin: '0 auto' }}>
-          When a Sales Employee confirms a deal from the Lead Pipeline, the Operations Agent will automatically
+          When a Sales Employee confirms a contract from the Lead Pipeline, the Operations Agent will automatically
           generate onboarding tasks and they will appear here.
         </p>
       </div>
@@ -137,7 +136,7 @@ export function TasksBoard({ tasks, onUpdateStatus }) {
             >
               <div className="column-header">
                 <span>
-                  {STATUS_ICON[status]} {STATUS_LABEL[status] || status.replace('_', ' ')}
+                  {STATUS_LABEL[status] || status.replace('_', ' ')}
                 </span>
                 <span
                   style={{
@@ -230,7 +229,7 @@ export function TasksBoard({ tasks, onUpdateStatus }) {
                             gap: '0.3rem',
                           }}
                         >
-                          ✓ Completed
+                          Completed
                         </div>
                       )}
                     </div>

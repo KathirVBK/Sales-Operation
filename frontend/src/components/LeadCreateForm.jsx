@@ -98,9 +98,6 @@ export function LeadCreateForm({ onLeadCreated, onClose }) {
                 marginBottom: '1.5rem',
               }}
             >
-              <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>
-                {tier === 'HOT' ? '🔥' : tier === 'WARM' ? '✅' : '❄️'}
-              </div>
               <h3 style={{ color: '#fff', marginBottom: '0.5rem' }}>Lead Qualified!</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
                 The Sales Agent has qualified and scored this lead.
@@ -219,7 +216,7 @@ export function LeadCreateForm({ onLeadCreated, onClose }) {
               </div>
             </div>
 
-            <div className="form-section-label">Requirement & Deal Details</div>
+            <div className="form-section-label">Requirement & Contract Details</div>
 
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <label className="field-label" htmlFor="requirement">

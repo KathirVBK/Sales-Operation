@@ -10,7 +10,7 @@ Analyze the provided lead data and calculate a realistic, nuanced score (0-100) 
 Respond ONLY with a JSON object matching this structure:
 {
   "score": <float>,
-  "tier": "<HOT|WARM|COLD>",
+  "tier": "<HIGH|MEDIUM|LOW>",
   "components": {
     "budget": <float 0-25>,
     "business_need": <float 0-25>,
@@ -25,7 +25,7 @@ Respond ONLY with a JSON object matching this structure:
 }
 
 Guidelines:
-- Score >= 80 is HOT, 50-79 is WARM, < 50 is COLD.
+- Score >= 80 is HIGH, 50-79 is MEDIUM, < 50 is LOW.
 - Be highly analytical and realistic. Take into account implied urgency, size of budget, and specific business challenges.
 - Justify your score in the reasons array.
 - Components MUST add up (within rounding) to the overall score (sum components == score).
@@ -152,10 +152,10 @@ def _heuristic_company_fit_score(lead_data: dict) -> float:
 
 def _tier_from_score(score: float) -> str:
     if score >= 80.0:
-        return "HOT"
+        return "HIGH"
     if score >= 50.0:
-        return "WARM"
-    return "COLD"
+        return "MEDIUM"
+    return "LOW"
 
 
 def _fallback_heuristic_score(lead_data: dict) -> dict:
@@ -209,7 +209,7 @@ def _normalize_score_result(result: dict) -> dict:
         score = float(result.get("score", 0))
         score = max(0.0, min(100.0, score))
         tier = (result.get("tier") or _tier_from_score(score)).upper()
-        if tier not in {"HOT", "WARM", "COLD"}:
+        if tier not in {"HIGH", "MEDIUM", "LOW"}:
             tier = _tier_from_score(score)
         components = result.get("components") or {}
         def _clamp(v, lo, hi):

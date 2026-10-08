@@ -47,7 +47,7 @@ class ScoreComponents(BaseModel):
 
 class ScoreResult(BaseModel):
     score: float
-    tier: str            # HOT | WARM | COLD
+    tier: str            # HIGH | MEDIUM | LOW
     components: ScoreComponents
     reasons: List[str]
 

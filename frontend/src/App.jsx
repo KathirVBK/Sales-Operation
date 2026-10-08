@@ -8,10 +8,10 @@ import { TasksBoard } from './components/TasksBoard';
 const DEFAULT_POLL_MS = 5000;
 
 const NAV_ITEMS = [
-  { id: 'leads', label: 'Lead Pipeline', icon: '📋', section: 'Sales' },
-  { id: 'deals', label: 'Won Deals', icon: '🤝', section: 'Sales' },
-  { id: 'tasks', label: 'Ops Tasks', icon: '⚙️', section: 'Operations' },
-  { id: 'chat', label: 'AI Assistant', icon: '🔍', section: 'AI' },
+  { id: 'leads', label: 'Lead Pipeline', section: 'Sales' },
+  { id: 'deals', label: 'Contracts', section: 'Sales' },
+  { id: 'tasks', label: 'Ops Tasks', section: 'Operations' },
+  { id: 'chat', label: 'Assistant', section: 'System' },
 ];
 
 function groupNavItems(items) {
@@ -180,7 +180,7 @@ function App() {
                     if (e.key === 'Enter' || e.key === ' ') setActiveTab(item.id);
                   }}
                 >
-                  <span style={{ marginRight: '0.6rem' }}>{item.icon}</span>
+                  {item.icon && <span style={{ marginRight: '0.6rem' }}>{item.icon}</span>}
                   {item.label}
                   {item.id === 'leads' && leads.length > 0 && (
                     <span
@@ -262,9 +262,6 @@ function App() {
       <div className="main-content">
         <div className="header">
           <span>
-            {activeItem?.icon && (
-              <span style={{ marginRight: '0.5rem' }}>{activeItem.icon}</span>
-            )}
             {activeItem?.label}
           </span>
           {isInitialLoading && (
@@ -327,7 +324,7 @@ function App() {
               gap: '1rem',
             }}
           >
-            <div>✓ {successBanner.message}</div>
+            <div>{successBanner.message}</div>
             <button
               onClick={() => setSuccessBanner(null)}
               style={{

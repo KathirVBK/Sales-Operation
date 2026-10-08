@@ -44,9 +44,9 @@ Return ONLY a JSON object:
 }
 
 Guidelines:
-- HOT tier: personalized, enthusiastic, specific to their need, with a clear call to action
-- WARM tier: nurturing message, show value, invite a conversation
-- COLD tier: brief, low-pressure, just keeping in touch
+- HIGH tier: personalized, enthusiastic, specific to their need, with a clear call to action
+- MEDIUM tier: nurturing message, show value, invite a conversation
+- LOW tier: brief, low-pressure, just keeping in touch
 - Keep body under 200 words
 - Address the contact by name if available
 - Sign off from "The Sales Team"
@@ -141,9 +141,9 @@ def _normalize_outreach(raw: dict, tier: str) -> dict:
     body = (raw.get("body") or "").strip()
     if not subject:
         subject_map = {
-            "HOT": "Let's talk about your project",
-            "WARM": "Following up on your inquiry",
-            "COLD": "Quick note following your inquiry",
+            "HIGH": "Let's talk about your project",
+            "MEDIUM": "Following up on your inquiry",
+            "LOW": "Quick note following your inquiry",
         }
         subject = subject_map.get(tier, "Following up on your inquiry")
     if not body:
@@ -241,15 +241,15 @@ def run_sales_agent(message: str, existing_lead: dict = None) -> dict:
 
         tier = score_result["tier"]
         tier_messages = {
-            "HOT": "🔥 This is a HOT lead! Outreach draft generated.",
-            "WARM": "✅ Qualified as a WARM lead. Follow-up draft ready.",
-            "COLD": "❄️ Lead is COLD. A gentle follow-up has been prepared.",
+            "HIGH": "This is a HIGH lead. Outreach draft generated.",
+            "MEDIUM": "Qualified as a MEDIUM lead. Follow-up draft ready.",
+            "LOW": "Lead is LOW. A gentle follow-up has been prepared.",
         }
         response_msg = (
             "Lead qualified successfully.\n\n"
-            f"**Company:** {lead_data.get('company_name', 'Unknown')}\n"
-            f"**Score:** {score_result['score']}/100\n"
-            f"**Tier:** {tier}\n\n"
+            f"Company: {lead_data.get('company_name', 'Unknown')}\n"
+            f"Score: {score_result['score']}/100\n"
+            f"Tier: {tier}\n\n"
             f"{tier_messages.get(tier, 'Lead processed.')}"
         )
 
@@ -362,16 +362,16 @@ def run_sales_agent_from_form(form_data: dict) -> dict:
 
         tier = score_result["tier"]
         tier_messages = {
-            "HOT": "🔥 HOT lead! High priority.",
-            "WARM": "✅ WARM lead. Good potential.",
-            "COLD": "❄️ COLD lead. Low priority for now.",
+            "HIGH": "HIGH lead. High priority.",
+            "MEDIUM": "MEDIUM lead. Good potential.",
+            "LOW": "LOW lead. Low priority for now.",
         }
         response_msg = (
             f"Lead qualified successfully.\n\n"
-            f"**Company:** {company_name}\n"
-            f"**Contact:** {contact_name}\n"
-            f"**Score:** {score_result['score']}/100\n"
-            f"**Tier:** {tier}\n\n"
+            f"Company: {company_name}\n"
+            f"Contact: {contact_name}\n"
+            f"Score: {score_result['score']}/100\n"
+            f"Tier: {tier}\n\n"
             f"{tier_messages.get(tier, 'Lead processed.')}"
         )
 

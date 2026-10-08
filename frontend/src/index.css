@@ -13,9 +13,9 @@
   --accent-hover: #8b5cf6;
   --border-color: rgba(255, 255, 255, 0.08);
   
-  --status-hot: #ef4444;
-  --status-warm: #f59e0b;
-  --status-cold: #3b82f6;
+  --status-high: #ef4444;
+  --status-medium: #f59e0b;
+  --status-low: #3b82f6;
   
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
@@ -376,9 +376,9 @@ body {
   text-transform: uppercase;
 }
 
-.tier-HOT { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
-.tier-WARM { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
-.tier-COLD { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+.tier-HIGH { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+.tier-MEDIUM { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+.tier-LOW { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
 
 /* Task Board Columns */
 .task-board {

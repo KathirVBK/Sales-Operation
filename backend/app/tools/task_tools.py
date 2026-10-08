@@ -39,7 +39,7 @@ def create_onboarding_tasks(deal_id: int, lead_data: dict = None) -> list[dict]:
         try:
             tier = (lead_data.get("tier") or "").upper()
             budget = lead_data.get("budget") or 0
-            if tier == "HOT" or (isinstance(budget, (int, float)) and budget >= 1000000):
+            if tier == "HIGH" or (isinstance(budget, (int, float)) and budget >= 1000000):
                 tasks = [
                     {**t, "priority": "HIGH" if t["priority"] == "HIGH" else "MEDIUM"}
                     for t in tasks

@@ -15,7 +15,7 @@ Classify the employee's message into EXACTLY one of these intents:
 
 1. STATUS_QUERY   - Asking about a lead status, deal status, or onboarding status for a company
 2. TASK_UPDATE    - Requesting a task status change (e.g., mark as done, start, in progress)
-3. LEAD_QUERY     - Asking about lead details, scores, tiers, or pipeline (e.g., "show me HOT leads", "why is X a HOT lead")
+3. LEAD_QUERY     - Asking about lead details, scores, tiers, or pipeline (e.g., "show me HIGH leads", "why is X a HIGH lead")
 4. DEAL_QUERY     - Asking about deals, won deals, deal values
 5. TASK_QUERY     - Asking about tasks, pending tasks, high-priority tasks, onboarding progress
 6. GENERAL_QUERY  - Any other business information query

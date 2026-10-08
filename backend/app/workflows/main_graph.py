@@ -79,8 +79,8 @@ def query_node(state: AgentState):
             msg_lower = message.lower()
 
             # Smart filtering based on message content
-            if any(kw in msg_lower for kw in ["hot", "warm", "cold"]):
-                for tier in ["HOT", "WARM", "COLD"]:
+            if any(kw in msg_lower for kw in ["high", "medium", "low"]):
+                for tier in ["HIGH", "MEDIUM", "LOW"]:
                     if tier.lower() in msg_lower:
                         leads = [l for l in leads if l.get("tier") == tier]
                         break
@@ -96,11 +96,11 @@ def query_node(state: AgentState):
             if not leads:
                 response_text = "No matching leads found."
             else:
-                lines = [f"**Lead Pipeline** ({len(leads)} lead(s)):\n"]
+                lines = [f"Lead Pipeline ({len(leads)} lead(s)):\n"]
                 for l in leads:
                     budget_str = f"\u20b9{l['budget']:,.0f}" if l.get("budget") else "N/A"
                     lines.append(
-                        f"\n**{l['company_name']}**\n"
+                        f"\n{l['company_name']}\n"
                         f"  Contact: {l.get('contact_name') or 'N/A'}\n"
                         f"  Requirement: {l.get('need') or 'N/A'}\n"
                         f"  Budget: {budget_str}\n"
@@ -126,11 +126,11 @@ def query_node(state: AgentState):
             if not deals:
                 response_text = "No matching deals found."
             else:
-                lines = [f"**Deals** ({len(deals)} deal(s)):\n"]
+                lines = [f"Contracts ({len(deals)} contract(s)):\n"]
                 for d in deals:
                     val = f"\u20b9{d['deal_value']:,.0f}" if d.get("deal_value") else "TBD"
                     lines.append(
-                        f"\n**{d.get('company_name', 'Unknown')}** (Deal #{d['id']})\n"
+                        f"\n{d.get('company_name', 'Unknown')} (Contract #{d['id']})\n"
                         f"  Value: {val}\n"
                         f"  Status: {d.get('status')}\n"
                         f"  Lead Score: {d.get('score') or 'N/A'} ({d.get('tier') or '-'})\n"
@@ -161,7 +161,7 @@ def query_node(state: AgentState):
             if not tasks:
                 response_text = "No matching tasks found."
             else:
-                lines = [f"**Tasks** ({len(tasks)} task(s)):\n"]
+                lines = [f"Tasks ({len(tasks)} task(s)):\n"]
                 for t in tasks:
                     lines.append(
                         f"  • [{t.get('status')}] {t.get('task_name')} "
@@ -183,15 +183,15 @@ def query_node(state: AgentState):
         else:
             # GENERAL_QUERY fallback
             response_text = (
-                "I can help you find information about leads, deals, and operational tasks.\n\n"
+                "I can help you find information about leads, contracts, and operational tasks.\n\n"
                 "Try asking:\n"
-                "• \"Show me all HOT leads\"\n"
+                "• \"Show me all HIGH leads\"\n"
                 "• \"What are the details of [Company Name]?\"\n"
                 "• \"Which leads have a score above 80?\"\n"
-                "• \"What deals are currently WON?\"\n"
+                "• \"What contracts are active?\"\n"
                 "• \"Show me pending high-priority tasks\"\n\n"
-                "Note: To create a new lead, use the **Lead Pipeline → + Create Lead** button.\n"
-                "To confirm a deal, use the **Confirm Deal** button on the lead card."
+                "Note: To create a new lead, use the Lead Pipeline → + Create Lead button.\n"
+                "To confirm a contract, use the Confirm Contract button on the lead card."
             )
             trace.append(log_step(intent, "Chat Assistant", "General Help", "Provided guidance"))
 

@@ -68,9 +68,9 @@ The LLM only extracts the facts from the conversation (budget, timeline). A dete
 | Timeline | >= 30 days | +10 |
 
 **Tier Thresholds:**
-- **HOT:** 35+ points
-- **WARM:** 20-34 points
-- **COLD:** < 20 points
+- **HIGH:** 35+ points
+- **MEDIUM:** 20-34 points
+- **LOW:** < 20 points
 
 ## Scope & Limitations
 

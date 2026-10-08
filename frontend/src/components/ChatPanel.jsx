@@ -5,14 +5,14 @@ import { ExecutionTrace } from './ExecutionTrace';
 const WELCOME_MESSAGE = {
   role: 'agent',
   content:
-    "Hello! I'm your Sales & Operations AI Assistant. I can help you retrieve business information.\n\nYou can ask me:\n• \"Show me all HOT leads\"\n• \"Why was ABC Technologies classified as a HOT lead?\"\n• \"Which leads have a score above 80?\"\n• \"What deals are currently WON?\"\n• \"Show me pending high-priority tasks\"\n• \"What is the status of ABC Technologies?\"\n\nTo create a lead, use the Lead Pipeline → + Create Lead button.\nTo confirm a deal, open a lead and click Confirm Deal.",
+    "Hello! I'm your Sales & Operations AI Assistant. I can help you retrieve business information.\n\nYou can ask me:\n• \"Show me all HIGH leads\"\n• \"Why was ABC Technologies classified as a HIGH lead?\"\n• \"Which leads have a score above 80?\"\n• \"What contracts are currently active?\"\n• \"Show me pending high-priority tasks\"\n• \"What is the status of ABC Technologies?\"\n\nTo create a lead, use the Lead Pipeline → + Create Lead button.\nTo confirm a contract, open a lead and click Confirm Contract.",
   system: true,
 };
 
 const QUICK_PROMPTS = [
-  'Show me all HOT leads',
+  'Show me all HIGH leads',
   'Which leads have a score above 70?',
-  'What deals are WON?',
+  'What contracts are active?',
   'Show pending high-priority tasks',
 ];
 
@@ -126,7 +126,7 @@ export function ChatPanel({ refreshData }) {
         ...prev,
         {
           role: 'agent',
-          content: `⚠️ Error: ${detail}`,
+          content: `Error: ${detail}`,
           error: true,
         },
       ]);
@@ -179,7 +179,7 @@ export function ChatPanel({ refreshData }) {
               fontWeight: 600,
             }}
           >
-            🔍 Query Mode
+            Query Mode
           </span>
           <span style={{ marginLeft: '0.75rem', opacity: 0.7 }}>
             Thread: <code>{threadId.slice(0, 20)}…</code>
@@ -293,7 +293,7 @@ export function ChatPanel({ refreshData }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onInputKeyDown}
-          placeholder="Ask about leads, deals, tasks… (e.g. Show me all HOT leads)"
+          placeholder="Ask about leads, contracts, tasks… (e.g. Show me all HIGH leads)"
           disabled={isLoading}
           rows={Math.min(3, Math.max(1, input.split('\n').length))}
           style={{ resize: 'vertical', minHeight: '2.5rem', lineHeight: '1.4' }}

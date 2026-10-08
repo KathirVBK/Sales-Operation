@@ -42,7 +42,7 @@ function StatusBadge({ status }) {
         letterSpacing: '0.04em',
       }}
     >
-      {s}
+      {s === 'WON' ? 'CONTRACT' : s}
     </span>
   );
 }
@@ -120,7 +120,6 @@ export function LeadsBoard({ leads, onLeadCreated, onConfirmDeal }) {
             color: 'var(--text-secondary)',
           }}
         >
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
           <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No leads yet</h3>
           <p style={{ marginBottom: '1.5rem' }}>
             Click <strong>+ Create Lead</strong> to add your first lead to the pipeline.
@@ -225,9 +224,9 @@ export function LeadsBoard({ leads, onLeadCreated, onConfirmDeal }) {
                           width: `${lead.score || 0}%`,
                           height: '100%',
                           background:
-                            lead.tier === 'HOT'
+                            lead.tier === 'HIGH'
                               ? 'linear-gradient(90deg, #ef4444, #f97316)'
-                              : lead.tier === 'WARM'
+                              : lead.tier === 'MEDIUM'
                               ? 'linear-gradient(90deg, #f59e0b, #eab308)'
                               : 'linear-gradient(90deg, #3b82f6, #6366f1)',
                           borderRadius: '999px',
@@ -418,7 +417,7 @@ export function LeadsBoard({ leads, onLeadCreated, onConfirmDeal }) {
                 }}
               >
                 <strong>Sales process complete?</strong> If the customer has agreed to proceed, click{' '}
-                <em>Confirm Deal</em> to convert this lead to a WON deal and trigger the Operations workflow.
+                <em>Confirm Contract</em> to convert this lead to a contract and trigger the Operations workflow.
               </div>
 
               {confirmError && (
@@ -466,7 +465,7 @@ export function LeadsBoard({ leads, onLeadCreated, onConfirmDeal }) {
                     boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
                   }}
                 >
-                  {confirmingId === selectedLead.id ? 'Confirming…' : '✓ Confirm Deal'}
+                  {confirmingId === selectedLead.id ? 'Confirming…' : 'Confirm Contract'}
                 </button>
               </div>
             </div>

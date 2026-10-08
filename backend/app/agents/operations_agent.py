@@ -121,7 +121,7 @@ def _handle_deal_won(message: str) -> dict:
     return {
         "status": "SUCCESS",
         "message": (
-            f"Deal marked as WON for {lead['company_name']}.\n\n"
+            f"Contract confirmed for {lead['company_name']}.\n\n"
             f"{len(tasks)} onboarding tasks created:\n" +
             "\n".join(f"• {t['task_name']} — {t['priority']}" for t in tasks)
         ),
